@@ -1,5 +1,6 @@
 from rest_framework import serializers
-from .models import CarBrand
+from .models import CarBrand, Book, Author, Profile
+from django.contrib.auth.models import User
 
 
 class CarBrandSerializer(serializers.ModelSerializer):
@@ -25,3 +26,48 @@ class CarBrandSerializer(serializers.ModelSerializer):
         if len(value) <= 3:
             raise serializers.ValidationError("Ошибка! Слишком мало информации о машине.")
         return value
+
+
+class BookSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Book
+        fields = ['title']
+
+
+class AuthorSerializer(serializers.ModelSerializer):
+    books = BookSerializer(many=True)
+
+    class Meta:
+        model = Author
+        fields = ['name', 'books']
+
+    def create(self, validated_data):
+        datas = validated_data.pop('books')
+        author = Author.objects.create(**validated_data)
+
+        for data in datas:
+            Book.objects.create(author=author, **data)
+
+        return author
+
+
+class ProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Profile
+        fields = ['bio', 'avatar']
+
+
+class UserSerializer(serializers.ModelSerializer):
+    profile = ProfileSerializer()
+
+    class Meta:
+        model = User
+        fields = ['username', 'email', 'password', 'profile']
+
+    def create(self, validated_data):
+        profile = validated_data.pop('profile')
+        user = User.objects.create(**validated_data)
+
+        Profile.objects.create(name=user, **profile)
+
+        return user
